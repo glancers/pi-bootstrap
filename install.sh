@@ -46,7 +46,7 @@ fi
 
 # ---------- 输出辅助 ----------
 if [ -t 1 ]; then
-  BOLD='\033[1m'; DIM='\033[2m'; GREEN='\033[32m'; CYAN='\033[36m'; YELLOW='\033[33m'; RED='\033[31m'; RESET='\033[0m'
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; GREEN=$'\033[32m'; CYAN=$'\033[36m'; YELLOW=$'\033[33m'; RED=$'\033[31m'; RESET=$'\033[0m'
 else
   BOLD=''; DIM=''; GREEN=''; CYAN=''; YELLOW=''; RED=''; RESET=''
 fi
@@ -213,6 +213,12 @@ else
 fi
 
 # ---------- 交互式：火山 Agent Plan ----------
+# 注意：未登录态 arkcli auth status/whoami 退出码也是 0（输出 JSON），
+# 必须解析 logged_in 字段，不能只看退出码。
+ark_logged_in() {
+  arkcli auth status 2>/dev/null | grep -q '"logged_in"[[:space:]]*:[[:space:]]*true'
+}
+
 configure_ark() {
   step "配置火山方舟 Agent Plan（写入 pi model/provider）"
 
@@ -227,9 +233,9 @@ configure_ark() {
       --no-interactive \
       --set-default || warn "profile 创建失败（可能已存在），继续尝试用现有 profile"
   else
-    # 注意：auth status 在 SSO token 过期时也会失败，不能据此判断是否登录过。
-    # 未登录态先尝试 whoami，失败才引导 SSO 登录。
-    if ! arkcli auth whoami >/dev/null 2>&1; then
+    if ark_logged_in; then
+      ok "火山方舟已登录"
+    else
       cat <<'EOF'
 
   接下来需要登录火山方舟（浏览器 SSO）。
@@ -237,8 +243,7 @@ configure_ark() {
 
 EOF
       run_interactive arkcli auth login volc-sso || die "火山登录未完成"
-    else
-      ok "火山方舟已登录：$(arkcli auth whoami 2>/dev/null | head -1 || echo '?')"
+      ark_logged_in || die "登录后状态仍为未登录，请检查 arkcli auth status"
     fi
 
     # 若目标 profile 不存在，引导创建
