@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# pi-bootstrap — 一键安装 Pi + 火山方舟 Agent Plan + 飞书(lark-cli) 全家桶
+# pi-bootstrap — 一键安装 Pi + 火山方舟 Agent Plan
 #
 # 用法（curl 管道）:
 #   curl -fsSL https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh | bash
@@ -11,7 +11,6 @@
 #
 # 可选环境变量:
 #   SKIP_NODE=1            跳过 Node 安装（假定 PATH 上已有 node >= 22.19）
-#   SKIP_LARK=1            跳过 lark-cli 及飞书 skills
 #   SKIP_ARK=1             跳过 arkcli / Agent Plan 配置（仅装 pi）
 #   SKIP_SKILLS=1          跳过 skills 安装
 #   ARK_PROFILE_NAME=xxx   Agent Plan profile 名（默认 agent-plan_cn-beijing_personal）
@@ -19,7 +18,7 @@
 #   ARK_API_KEY=ark-xxx    提供后跳过 SSO 登录，直接用 API Key 建 profile
 #
 # 设计目标：macOS / Linux，无需 sudo，所有东西装在 $HOME 下。
-# 登录类操作（火山 SSO、飞书 device flow）必须人工完成，脚本会在对应步骤引导。
+# 登录类操作（火山 SSO）必须人工完成，脚本会在对应步骤引导。
 
 set -euo pipefail
 
@@ -34,7 +33,6 @@ ARK_PROFILE_NAME="${ARK_PROFILE_NAME:-agent-plan_cn-beijing_personal}"
 
 PI_PKG="@earendil-works/pi-coding-agent"
 ARK_PKG="@volcengine/ark-cli"
-LARK_PKG="@larksuite/cli"
 
 # ---------- 输出辅助 ----------
 if [ -t 1 ]; then
@@ -180,14 +178,6 @@ else
   ok "pi 安装完成：$(pi --version 2>/dev/null || echo '?')"
 fi
 
-if [ "${SKIP_LARK:-}" != 1 ]; then
-  step "安装飞书 lark-cli"
-  npm install -g "$LARK_PKG"
-  ok "lark-cli $(lark-cli --version 2>/dev/null | head -1 || echo '?')"
-else
-  warn "SKIP_LARK=1，跳过 lark-cli"
-fi
-
 if [ "${SKIP_ARK:-}" != 1 ]; then
   step "安装火山方舟 arkcli"
   npm install -g "$ARK_PKG"
@@ -200,13 +190,6 @@ fi
 if [ "${SKIP_SKILLS:-}" != 1 ]; then
   step "安装 Agent Skills"
   mkdir -p "$PI_SKILLS_DIR" "$AGENT_SKILLS_DIR"
-
-  if [ "${SKIP_LARK:-}" != 1 ]; then
-    info "安装飞书 lark-* skills（npx skills add larksuite/cli -g -y）…"
-    # 官方 skills CLI 会自动探测到 pi 并写入 ~/.pi/agent/skills
-    npx -y skills add larksuite/cli -g -y || warn "飞书 skills 安装失败，可稍后手动执行: npx skills add larksuite/cli -g -y"
-    ok "飞书 skills 就绪"
-  fi
 
   if [ "${SKIP_ARK:-}" != 1 ]; then
     info "安装 arkcli-* skills 到 $PI_SKILLS_DIR …"
@@ -266,42 +249,6 @@ EOF
 }
 [ "${SKIP_ARK:-}" != 1 ] && configure_ark || true
 
-# ---------- 交互式：飞书登录 ----------
-configure_lark() {
-  step "配置并登录飞书 lark-cli"
-
-  # lark-cli auth status 退出码恒为 0，需用 JSON 的 ok 字段判断。
-  local status_ok
-  status_ok="$(lark-cli auth status --json 2>/dev/null | grep -o '"ok"[[:space:]]*:[[:space:]]*true' | head -1 || true)"
-  if [ -n "$status_ok" ]; then
-    ok "飞书已登录"
-    return 0
-  fi
-
-  # 全新机器：还没有绑定自建应用（~/.lark-cli/config.json 不存在 / 无 apps）。
-  # config init --new 会给出链接，在浏览器里按引导创建/选择一个飞书自建应用并授权。
-  if [ ! -s "$HOME/.lark-cli/config.json" ] || \
-     ! grep -q '"appId"' "$HOME/.lark-cli/config.json" 2>/dev/null; then
-    cat <<'EOF'
-
-  首次使用需要绑定一个飞书自建应用。
-  接下来终端会输出一个链接（可用 lark-cli auth qrcode 转二维码手机扫码）。
-  在浏览器打开链接，按引导创建 / 选择自建应用并完成授权，然后回到终端。
-
-EOF
-    run_interactive lark-cli config init --new || warn "飞书应用绑定未完成，稍后可手动执行: lark-cli config init --new"
-  fi
-
-  cat <<'EOF'
-
-  接下来进行账号授权（device flow，申请全部业务域权限）。
-  终端会给出链接 + 二维码，浏览器打开 / 飞书扫码授权即可。
-
-EOF
-  run_interactive lark-cli auth login --domain all || warn "飞书登录未完成，稍后可手动执行: lark-cli auth login --domain all"
-}
-[ "${SKIP_LARK:-}" != 1 ] && configure_lark || true
-
 # ---------- 收尾 ----------
 cat <<EOF
 
@@ -320,7 +267,6 @@ ${BOLD}已安装：${RESET}
   - pi    $(pi --version 2>/dev/null || echo '?')
   - npm global prefix: $NPM_GLOBAL_PREFIX
 $(command -v arkcli >/dev/null 2>&1 && printf '  - arkcli %s\n' "$(arkcli --version 2>/dev/null || echo '?')")
-$(command -v lark-cli >/dev/null 2>&1 && printf '  - lark-cli %s\n' "$(lark-cli --version 2>/dev/null | head -1 || echo '?')")
 
-${DIM}提示：登录态（火山 / 飞书）只保存在本机，不随脚本分发，每台新电脑都要各自登录一次。${RESET}
+${DIM}提示：火山登录态只保存在本机，不随脚本分发，每台新电脑都要各自登录一次。${RESET}
 EOF
