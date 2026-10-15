@@ -219,6 +219,16 @@ ark_logged_in() {
   arkcli auth status 2>/dev/null | grep -q '"logged_in"[[:space:]]*:[[:space:]]*true'
 }
 
+# 有桌面浏览器的环境走 same-device（自动开浏览器 + 本地回调）；
+# 无头服务器 / SSH 走跨设备流程（不监听端口，授权页给 base64 码粘回）。
+ark_sso_login() {
+  if command -v open >/dev/null 2>&1 || { [ -n "${DISPLAY:-}" ] && command -v xdg-open >/dev/null 2>&1; }; then
+    run_interactive arkcli auth login volc-sso
+  else
+    run_interactive arkcli auth login --no-browser
+  fi
+}
+
 configure_ark() {
   step "配置火山方舟 Agent Plan（写入 pi model/provider）"
 
@@ -236,13 +246,25 @@ configure_ark() {
     if ark_logged_in; then
       ok "火山方舟已登录"
     else
+      if command -v open >/dev/null 2>&1 || { [ -n "${DISPLAY:-}" ] && command -v xdg-open >/dev/null 2>&1; }; then
       cat <<'EOF'
 
   接下来需要登录火山方舟（浏览器 SSO）。
   终端会打开浏览器或给出链接，用你的火山引擎账号完成授权后回到这里。
 
 EOF
-      run_interactive arkcli auth login volc-sso || die "火山登录未完成"
+      else
+      cat <<'EOF'
+
+  接下来需要登录火山方舟（跨设备 SSO，本机无浏览器）：
+  1. 复制终端输出的 https://signin.volcengine.com/... 链接
+  2. 在你自己的电脑/手机浏览器打开，登录并授权
+  3. 授权页会显示一长串 base64 字符，复制它
+  4. 粘贴回本终端的「授权码:」提示符后回车（10 分钟内有效）
+
+EOF
+      fi
+      ark_sso_login || die "火山登录未完成"
       ark_logged_in || die "登录后状态仍为未登录，请检查 arkcli auth status"
     fi
 
