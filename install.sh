@@ -126,6 +126,8 @@ install_standalone_node() {
 }
 
 # ---------- PATH 持久化 ----------
+# 主 profile 仅用于收尾提示；实际写入所有常见 profile，
+# 避免「默认 shell 是 zsh 但当前会话跑 bash」（或反之）时 PATH 不生效。
 SHELL_PROFILE=""
 detect_shell_profile() {
   case "${SHELL:-}" in
@@ -134,6 +136,24 @@ detect_shell_profile() {
       [ -f "$HOME/.bashrc" ] && SHELL_PROFILE="$HOME/.bashrc" || SHELL_PROFILE="$HOME/.profile"
       ;;
   esac
+}
+
+write_profiles() {
+  # 主 profile 总是处理；其余仅当已存在时才写（避免在不用的 shell 上造垃圾文件）
+  local p written="" seen=""
+  for p in "$SHELL_PROFILE" "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
+    case " $seen " in *" $p "*) continue;; esac
+    seen="$seen $p"
+    [ "$p" = "$SHELL_PROFILE" ] || [ -f "$p" ] || continue
+    if grep -Fq "# >>> pi-bootstrap >>>" "$p" 2>/dev/null; then
+      ok "$p 中已有 pi-bootstrap 配置，跳过"
+    else
+      printf '%s' "$1" >> "$p"
+      written="$written $p"
+    fi
+  done
+  [ -n "$written" ] && ok "已写入环境变量到:$written"
+  return 0
 }
 
 # ============================================================
@@ -166,19 +186,19 @@ export PATH
 
 detect_shell_profile
 # 用一个标记行整体管理，避免重复执行时留下多段
-if ! grep -Fq "# >>> pi-bootstrap >>>" "$SHELL_PROFILE" 2>/dev/null; then
-  {
-    printf '\n# >>> pi-bootstrap >>>\n'
-    [ -x "$NODE_BASE_DIR/current/bin/node" ] && printf 'export PATH="%s/current/bin:$PATH"\n' "$NODE_BASE_DIR"
-    printf 'export NPM_CONFIG_PREFIX="%s"\n' "$NPM_GLOBAL_PREFIX"
-    printf 'export PATH="%s/bin:$PATH"\n' "$NPM_GLOBAL_PREFIX"
-    printf 'export PATH="$HOME/.pi/bin:$PATH"\n'
-    printf '# <<< pi-bootstrap <<<\n'
-  } >> "$SHELL_PROFILE"
-  ok "已写入环境变量到 $SHELL_PROFILE"
-else
-  ok "$SHELL_PROFILE 中已有 pi-bootstrap 配置，跳过"
+PROFILE_BLOCK='
+# >>> pi-bootstrap >>>
+'
+if [ -x "$NODE_BASE_DIR/current/bin/node" ]; then
+  PROFILE_BLOCK+="export PATH=\"$NODE_BASE_DIR/current/bin:\$PATH\"
+"
 fi
+PROFILE_BLOCK+="export NPM_CONFIG_PREFIX=\"$NPM_GLOBAL_PREFIX\"
+export PATH=\"$NPM_GLOBAL_PREFIX/bin:\$PATH\"
+export PATH=\"\$HOME/.pi/bin:\$PATH\"
+# <<< pi-bootstrap <<<
+"
+write_profiles "$PROFILE_BLOCK"
 
 step "安装 pi"
 if command -v pi >/dev/null 2>&1; then
