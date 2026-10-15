@@ -11,16 +11,16 @@
 
 ## 一键安装
 
-把本仓库 push 到 GitHub 后（假设 `<owner>/<repo>`、默认分支 `main`）：
+把本仓库 push 到 GitHub 后（假设 `glancers/pi-bootstrap`、默认分支 `main`）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh | bash
 ```
 
 或者先下载、审查后再跑（推荐第一次这么做）：
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/<owner>/<repo>/main/install.sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh
 less install.sh
 bash install.sh
 ```
@@ -47,7 +47,7 @@ bash install.sh
 
 ```bash
 # 只装 pi，不碰飞书和火山
-curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/install.sh | SKIP_LARK=1 SKIP_ARK=1 bash
+curl -fsSL https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh | SKIP_LARK=1 SKIP_ARK=1 bash
 
 # 跳过 Node 安装（自己用 brew/mise 等装好了）
 SKIP_NODE=1 bash install.sh

@@ -3,10 +3,10 @@
 # pi-bootstrap — 一键安装 Pi + 火山方舟 Agent Plan + 飞书(lark-cli) 全家桶
 #
 # 用法（curl 管道）:
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh | bash
 #
 # 或者先下载再跑（支持环境变量控制）:
-#   curl -fsSL -o install.sh https://raw.githubusercontent.com/<owner>/<repo>/main/install.sh
+#   curl -fsSL -o install.sh https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh
 #   bash install.sh
 #
 # 可选环境变量:
