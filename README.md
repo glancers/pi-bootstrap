@@ -14,6 +14,12 @@
 curl -fsSL https://raw.githubusercontent.com/glancers/pi-bootstrap/main/install.sh | bash
 ```
 
+**国内网络（raw.githubusercontent 超时 / SSL_ERROR_SYSCALL）**：用 jsDelivr CDN 拉脚本，并加 `CN_MIRROR=1` 让 Node/npm 全部走 npmmirror：
+
+```bash
+curl -fsSL https://cdn.jsdelivr.net/gh/glancers/pi-bootstrap@main/install.sh | CN_MIRROR=1 bash
+```
+
 或者先下载、审查后再跑（推荐第一次这么做）：
 
 ```bash
@@ -68,6 +74,9 @@ ARK_API_KEY=ark-xxxx bash install.sh
 | `WITH_MCP` | 未设置 | `1` = `helper configure pi --with-mcp`，注入 Agent Plan MCP |
 | `ARK_PROFILE_NAME` | `agent-plan_cn-beijing_personal` | Agent Plan profile 名 |
 | `ARK_API_KEY` | 空 | 提供后跳过 SSO，直接用 Key 建 profile |
+| `CN_MIRROR` | 未设置 | `1` = Node 二进制和 npm registry 走 npmmirror，适合国内网络 |
+| `NODE_DIST_BASE` | 官方/npmmirror | 自定义 Node 下载源（会覆盖 `CN_MIRROR`） |
+| `NPM_REGISTRY` | 官方/npmmirror | 自定义 npm registry（会覆盖 `CN_MIRROR`） |
 
 ## 安装后验证
 
@@ -90,4 +99,4 @@ rm -rf ~/.local/share/pi-node ~/.local/npm-global ~/.pi ~/.arkcli
 
 - macOS（Intel / Apple Silicon）或 Linux x86_64 / arm64
 - `curl`、`tar`（Linux 精简镜像若没有 `xz`，脚本会尝试 apt/apk 安装；完全无 sudo 的环境请先自行装 `xz`）
-- 能访问 nodejs.org、registry.npmjs.org、github.com（大陆网络如走代理，先 `export HTTPS_PROXY=...`）
+- 能访问 nodejs.org、registry.npmjs.org、github.com（大陆网络如走代理，先 `export HTTPS_PROXY=...`，或直接用上面的 `CN_MIRROR=1` + jsDelivr 方式）

@@ -16,6 +16,7 @@
 #   ARK_PROFILE_NAME=xxx   Agent Plan profile 名（默认 agent-plan_cn-beijing_personal）
 #   WITH_MCP=1             给 pi 注入 Agent Plan 内置 MCP（豆包搜索 / dataPro / OpenViking）
 #   ARK_API_KEY=ark-xxx    提供后跳过 SSO 登录，直接用 API Key 建 profile
+#   CN_MIRROR=1            国内镜像：Node/npm 走 npmmirror（jsDelivr 拉脚本时建议带上）
 #
 # 设计目标：macOS / Linux，无需 sudo，所有东西装在 $HOME 下。
 # 登录类操作（火山 SSO）必须人工完成，脚本会在对应步骤引导。
@@ -33,6 +34,15 @@ ARK_PROFILE_NAME="${ARK_PROFILE_NAME:-agent-plan_cn-beijing_personal}"
 
 PI_PKG="@earendil-works/pi-coding-agent"
 ARK_PKG="@volcengine/ark-cli"
+
+# 下载源；CN_MIRROR=1 时默认走 npmmirror（显式设置 NODE_DIST_BASE / NPM_REGISTRY 仍优先生效）
+if [ "${CN_MIRROR:-}" = 1 ]; then
+  NODE_DIST_BASE="${NODE_DIST_BASE:-https://registry.npmmirror.com/-/binary/node}"
+  NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
+else
+  NODE_DIST_BASE="${NODE_DIST_BASE:-https://nodejs.org/dist}"
+  NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
+fi
 
 # ---------- 输出辅助 ----------
 if [ -t 1 ]; then
@@ -90,7 +100,7 @@ install_standalone_node() {
   need curl
   local tmp dist_base node_file node_dir
   tmp="$(mktemp -d)"
-  dist_base="https://nodejs.org/dist/latest-v${NODE_MIN_MAJOR}.x"
+  dist_base="$NODE_DIST_BASE/latest-v${NODE_MIN_MAJOR}.x"
 
   curl -fsSL "$dist_base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
   node_file="$(awk -v suffix="-${PLATFORM}-${NODE_ARCH}.tar.xz" '
@@ -150,6 +160,7 @@ step "配置 npm 全局目录（$NPM_GLOBAL_PREFIX，无需 sudo）"
 mkdir -p "$NPM_GLOBAL_PREFIX/bin" "$NPM_GLOBAL_PREFIX/lib"
 # 用环境变量而非 `npm config set prefix`，不污染用户全局 ~/.npmrc
 export NPM_CONFIG_PREFIX="$NPM_GLOBAL_PREFIX"
+export NPM_CONFIG_REGISTRY="$NPM_REGISTRY"
 PATH="$NPM_GLOBAL_PREFIX/bin:$PATH"
 export PATH
 
